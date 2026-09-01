@@ -1,0 +1,95 @@
+###############################################################################
+# Authelia 配置 — GCP 管理后台（单管理员 · 密码 + TOTP + Passkey）
+#
+# 启动前必改（搜 example.com 全局替换成你的主域名即可，大约 4 处）：
+#   - gcp.example.com    → 你的管理后台域名
+#   - auth.example.com   → Authelia 登录页域名
+#   - example.com        → 两个子域名的共同主域名（用于 Cookie 共享）
+#
+# 容器启动时还需要注入三把密钥（环境变量方式，不写在 YAML 里）：
+#   AUTHELIA_SESSION_SECRET
+#   AUTHELIA_STORAGE_ENCRYPTION_KEY
+#   AUTHELIA_IDENTITY_VALIDATION_RESET_PASSWORD_JWT_SECRET
+# 每把用  openssl rand -hex 32  生成一次即可。
+#
+# 用户账号放在同目录下的 users_database.yml（Authelia 要求独立文件），
+# 内容样例见本文件末尾注释。
+###############################################################################
+
+server:
+  address: 'tcp://0.0.0.0:9091/'
+
+log:
+  level: info
+
+totp:
+  issuer: 'GCP 管理后台'
+
+webauthn:
+  disable: false
+  display_name: 'GCP 管理后台'
+  attestation_conveyance_preference: indirect
+  timeout: 60s
+  selection_criteria:
+    discoverable: preferred
+    user_verification: preferred
+
+authentication_backend:
+  password_reset:
+    disable: true
+  file:
+    path: /config/users_database.yml
+    watch: false
+    password:
+      algorithm: argon2id
+
+access_control:
+  default_policy: deny
+  rules:
+    - domain: 'gcp.example.com'
+      policy: two_factor
+
+session:
+  cookies:
+    - name: authelia_session
+      domain: example.com
+      authelia_url: 'https://auth.example.com'
+      default_redirection_url: 'https://gcp.example.com'
+      expiration: 2h
+      inactivity: 30m
+      remember_me: 30d
+
+regulation:
+  max_retries: 3
+  find_time: 2m
+  ban_time: 15m
+
+storage:
+  local:
+    path: /config/db.sqlite3
+
+identity_validation:
+  reset_password:
+    jwt_algorithm: HS256
+
+notifier:
+  filesystem:
+    filename: /config/notifications.txt
+
+###############################################################################
+# 附：users_database.yml 内容样例（请另存为单独文件，不要写进本文件）
+#
+# 生成 password 字段里的 argon2 哈希：
+#   docker run --rm authelia/authelia:4.38 \
+#     authelia crypto hash generate argon2 --password '你的强密码'
+#
+# ---
+# users:
+#   admin:
+#     disabled: false
+#     displayname: "管理员"
+#     password: "$argon2id$v=19$m=65536,t=3,p=4$..."
+#     email: "admin@example.com"
+#     groups:
+#       - admins
+###############################################################################

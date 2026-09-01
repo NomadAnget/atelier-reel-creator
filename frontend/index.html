@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="zh">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GCP · 新系统</title>
+    <script>
+      // 首帧前定主题,避免暗/亮闪烁
+      try { document.documentElement.dataset.theme = localStorage.getItem('gcp-theme') || 'dark' } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

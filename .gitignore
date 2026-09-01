@@ -12,3 +12,6 @@ tmp/
 src/web/frontend/node_modules/
 run.log
 uv.lock
+node_modules/
+run.log
+uv.lock
