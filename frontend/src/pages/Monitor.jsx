@@ -102,7 +102,7 @@ function AddSourceForm({ typeLabels, domains = [], langOptions = [], onSubmitted
         <select className="input" style={{ width: 118 }} value={taskType}
                 title="监控源的任务类型——字段随之切换"
                 onChange={e => { setTaskType(e.target.value); setError('') }}>
-          {['video_translate', 'news_digest'].map(t => (
+          {Object.keys(typeLabels).map(t => (
             <option key={t} value={t}>{label(t)}</option>
           ))}
         </select>
@@ -296,7 +296,7 @@ export default function Monitor() {
   const [latestNews, setLatestNews] = useState({})
   const [bindings, setBindings] = useState({})
   const [accounts, setAccounts] = useState([])
-  const [typeLabels, setTypeLabels] = useState({ video_translate: '视频翻译', news_digest: '新闻日报' })
+  const [typeLabels, setTypeLabels] = useState({})   // 纯 snapshot 驱动:只显示后端实际挂载的管线
   const [langOptions, setLangOptions] = useState([])   // 目标语言下拉:同源自管线 create_spec(单一真相源)
   const [configFor, setConfigFor] = useState(null)
   const [filterChannel, setFilterChannel] = useState('')
@@ -309,8 +309,8 @@ export default function Monitor() {
     hubSnapshot().then(({ data }) => {
       const tt = data?.task_types || {}
       if (Object.keys(tt).length) {
-        setTypeLabels(prev => ({ ...prev, ...Object.fromEntries(
-          Object.entries(tt).map(([t, s]) => [t, s.label || t])) }))
+        setTypeLabels(Object.fromEntries(     // 替换而非合并:任务类型 = 后端实际挂载的管线
+          Object.entries(tt).map(([t, s]) => [t, s.label || t])))
         const lf = (tt.video_translate?.fields || []).find(f => f.name === 'target_lang')
         setLangOptions((lf?.options || []).map(o => [o.value, o.label]))   // 管线选项 → [v,l]
       }
