@@ -21,8 +21,9 @@
 ## 跑
 ```bash
 git submodule update --init --recursive
-# 边车构建(一次性):bgutil(node)+ publish-engine(uv 各自 env)
-cd src/services/bgutil-server && npm ci && npm run build && cd -
+# 边车构建(一次性):bgutil —— 在 server/ 子目录(package-lock 在那)装依赖 + tsc 编译 src→build/main.js
+cd src/services/bgutil-server/server && npm ci && npx tsc && cd -
+# publish-engine 无需手动:supervisor 用 `uv run python run.py` 首次自建其 env(自装依赖)
 # 前端构建(改自全功能前端)
 cd frontend && npm ci && npm run build && cd -
 uv sync                              # 或本机借 Architecture 胖 venv(见 reel-solo README B 法)
