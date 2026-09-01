@@ -1,0 +1,19 @@
+# 仅浏览配置:先看前端 UI + 频道管理(网关关、无边车)。
+# YouTube 下载(缺 bgutil POT)与自动发布(缺 publish-engine)不通——纯看 UI/加频道用。
+# 全功能用 config.toml(需先建 bgutil + publish-engine 由 supervisor 自起)。
+[paths]
+journal_db = "data/hub/journal.db"
+store_db   = "data/hub/store.db"
+models_dir = "/home/Architecture/checkpoints"
+
+[web]
+enabled  = true
+host     = "0.0.0.0"
+port     = 8098
+dist_dir = "frontend/dist"
+
+[gateway]
+enabled = false          # 关:不接 publish-engine(publishers 槽 fill_noop 空转)
+
+[supervisor]
+# 无 children:不起 bgutil / publish-engine

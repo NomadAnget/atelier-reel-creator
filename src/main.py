@@ -96,7 +96,7 @@ async def serve(config_path: str | None = None) -> None:
         from atelier_core.core.registry import load_header
         gateway = GatewayServer(host=cfg.gateway.host, port=cfg.gateway.port,
                                 token=cfg.gateway.token, ack_timeout=cfg.gateway.ack_timeout)
-        remote_handlers.update({d: gateway.remote_handlers(load_header(d)) for d in _forward})
+        remote_handlers.update({d: gateway.remote_handlers(load_header(d, DOMAIN_ROOT)) for d in _forward})
 
     bus, windows = await build_hub(
         remote_handlers, fill_noop=True, journal_db=cfg.paths.journal_db,
