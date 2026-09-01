@@ -1,0 +1,30 @@
+[submodule "src/web"]
+	path = src/web
+	url = http://debian.lan:3257/Carnation/atelier-web.git
+[submodule "src/scheduler"]
+	path = src/scheduler
+	url = http://debian.lan:3257/Carnation/atelier-scheduler.git
+[submodule "src/task"]
+	path = src/task
+	url = http://debian.lan:3257/Carnation/atelier-task.git
+[submodule "src/engines"]
+	path = src/engines
+	url = http://debian.lan:3257/Carnation/atelier-engines.git
+[submodule "src/platform_adapters"]
+	path = src/platform_adapters
+	url = http://debian.lan:3257/Carnation/atelier-platform_adapters.git
+[submodule "src/publishers"]
+	path = src/publishers
+	url = http://debian.lan:3257/Carnation/atelier-publishers.git
+[submodule "src/daemons"]
+	path = src/daemons
+	url = http://debian.lan:3257/Carnation/atelier-daemons.git
+[submodule "src/pipelines/video"]
+	path = src/pipelines/video
+	url = http://debian.lan:3257/Carnation/atelier-pipeline-video.git
+[submodule "src/services/publish-engine"]
+	path = src/services/publish-engine
+	url = http://debian.lan:3257/Carnation/publish-engine.git
+[submodule "src/services/bgutil-server"]
+	path = src/services/bgutil-server
+	url = https://github.com/Brainicism/bgutil-ytdlp-pot-provider
