@@ -10,8 +10,11 @@ import Icon from './Icon'
 import { hubSnapshot } from '../api/hub'
 
 const navGroups = [
+  { label: '概览', items: [
+    { to: '/', label: '系统总览', icon: 'dashboard', end: true },
+  ] },
   { label: '业务', items: [
-    { to: '/', label: '频道监控', icon: 'antenna', end: true },
+    { to: '/monitor', label: '频道监控', icon: 'antenna' },
     { to: '/jobs', label: '任务管理', icon: 'clipboard' },
     { to: '/knowledge', label: '名词对照', icon: 'database' },
     { to: '/accounts', label: '发布账号', icon: 'send' },
@@ -22,9 +25,9 @@ const navGroups = [
 ]
 
 const pageTitles = {
-  '/': '频道监控',
-  '/jobs': '任务管理',
+  '/': '系统总览',
   '/monitor': '频道监控',
+  '/jobs': '任务管理',
   '/knowledge': '名词对照',
   '/accounts': '发布账号',
   '/settings': '系统设置',

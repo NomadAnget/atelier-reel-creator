@@ -4,6 +4,7 @@ import { HubStreamProvider } from './hooks/HubStream'
 import { ConfirmHost } from './components/confirm'
 import Toaster from './components/Toaster'
 import Layout from './components/Layout'
+import Dashboard from './pages/Dashboard'
 import Jobs from './pages/Jobs'
 import Monitor from './pages/Monitor'
 import Knowledge from './pages/Knowledge'
@@ -19,7 +20,7 @@ export default function App() {
         <Toaster />
         <Routes>
           <Route path="/" element={<Layout />}>
-            <Route index element={<Monitor />} />
+            <Route index element={<Dashboard />} />
             <Route path="jobs" element={<Jobs />} />
             <Route path="monitor" element={<Monitor />} />
             <Route path="knowledge" element={<Knowledge />} />
