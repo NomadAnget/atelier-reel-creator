@@ -43,9 +43,9 @@ function Field({ f, value, onChange, targets }) {
         {(f.options || []).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>{help}</div>)
   }
-  if (f.type === 'bool') {
+  if (f.type === 'bool' || f.type === 'toggle') {   // toggle=settings 词汇别名,create 表单一并认
     return (<div><label style={{ fontSize: 13, display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer' }}>
-      <input type="checkbox" checked={!!value} onChange={e => onChange(e.target.checked)} />
+      <input type="checkbox" checked={value ?? f.default ?? false} onChange={e => onChange(e.target.checked)} />
       {f.label || f.name}</label>{help}</div>)
   }
   if (f.type === 'date') {
