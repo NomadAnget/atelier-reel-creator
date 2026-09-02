@@ -2,7 +2,7 @@
 
 **Atelier 变体:面向个人 up 主** —— 绑定频道监控(限 **5** 源)+ 视频翻译管线 + **自动发布**。
 
-> **宪法在内核仓**:体系的架构/契约/纪律以 [atelier-core/docs/](http://debian.lan:3257/Carnation/atelier-core/src/branch/master/docs)(CONSTITUTION + architecture/bus/storage/domains/boot/logging)为准。本 README 只给本变体的组装与运行导引。
+> **宪法在内核仓**:体系的架构/契约/纪律以 [atelier-core/docs/](http://forgejo.hurcaguari.top/Carnation/atelier-core/src/branch/master/docs)(CONSTITUTION + architecture/bus/storage/domains/boot/logging)为准。本 README 只给本变体的组装与运行导引。
 
 
 绑定最多 5 个源频道 → 监控发现新视频 → 自动建翻译任务 → 本地化配音成片 → 按绑定的发布目标自动出闸发布。
