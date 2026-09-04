@@ -18,6 +18,7 @@ from atelier_core.boot.assembly import (
     _housekeeping_loop,
     build_hub,
     build_store,
+    build_supervisor_and_gateway,
     self_test,
 )
 from atelier_core.boot.composition import BuildContext
@@ -63,7 +64,6 @@ async def serve(config_path: str | None = None) -> None:
     }
     engines_handlers: Handlers = {"on_settings_edit": lambda e: svc["engines_settings_edit"](e)}
     platform_adapters_handlers: Handlers = {
-        "on_accounts_snapshot": lambda e: svc["connections"].on_accounts_snapshot(e),
         "on_settings_edit":     lambda e: svc["ingest"].on_settings_edit(e),
     }
     # daemons:接监控槽位 → MonitorService;日报采集槽(on_digest_collect/…/on_items_used)不接,
@@ -88,15 +88,9 @@ async def serve(config_path: str | None = None) -> None:
         "daemons": daemons_handlers,
     }
 
-    # 网关:publishers = 远程域(发布引擎异地实现),其槽位交网关绑定
-    gateway = None
-    _forward = list(cfg.gateway.remote_domains)
-    if cfg.gateway.enabled and _forward:
-        from atelier_core.core.gateway.server import GatewayServer
-        from atelier_core.core.registry import load_header
-        gateway = GatewayServer(host=cfg.gateway.host, port=cfg.gateway.port,
-                                token=cfg.gateway.token, ack_timeout=cfg.gateway.ack_timeout)
-        remote_handlers.update({d: gateway.remote_handlers(load_header(d, DOMAIN_ROOT)) for d in _forward})
+    # 进程域 + 网关通用装配(发现驱动、零域绑定):建监督器(cfg 边车 + 进程域懒子进程)+ 网关转发/
+    # register_lazy。publishers 现为进程域(非远程域)——加 process 域无需改此处/config(见 boot.md 形态 B)。
+    supervisor, gateway = build_supervisor_and_gateway(cfg, remote_handlers, DOMAIN_ROOT)
 
     bus, windows = await build_hub(
         remote_handlers, fill_noop=True, journal_db=cfg.paths.journal_db,
@@ -124,10 +118,6 @@ async def serve(config_path: str | None = None) -> None:
     from .daemons.impl.service import update_daemon_settings
     await update_daemon_settings(store, store_windows["daemons"], {"max_channels": _MAX_CHANNELS})
 
-    # 监督器(bgutil + publish-engine 边车)——提前构造(child_port 供 ingest 取 POT 口)
-    from atelier_core.boot.supervisor import Supervisor
-    supervisor = Supervisor(list(cfg.supervisor.children))
-
     # task 域:build 聚合(基础 + pipeline-video)
     from .task import build as task_build
     ctx = BuildContext(hub=store, stores=store_windows, publish=windows["task"],
@@ -152,12 +142,16 @@ async def serve(config_path: str | None = None) -> None:
     # daemons:频道监控(auto-job 即建即跑;无日报排产/采集)
     from .daemons.impl.monitor import MonitorService
     svc["monitor"] = MonitorService(windows["daemons"], store, store_windows["daemons"])
+    # 发布账号保活/查态调度(执行侧在 publishers 进程域;到点发 daemons/publishers/* 唤醒)
+    from .daemons.impl.publishers_keepalive import PublishersKeepalive
+    svc["pub_keepalive"] = PublishersKeepalive(windows["daemons"], store)
 
     # ── 循环 ────────────────────────────────────────────────────────────────
     tasks = [
         asyncio.create_task(svc["scheduler"].run_worker(), name="scheduler_worker"),
         asyncio.create_task(svc["monitor"].run_loop(), name="monitor_loop"),
         asyncio.create_task(svc["connections"].run_youtube_mirror_loop(), name="yt_mirror"),
+        asyncio.create_task(svc["pub_keepalive"].run(), name="pub_keepalive"),
         asyncio.create_task(_housekeeping_loop(bus, store, cfg.retention), name="housekeeping"),
     ]
     await supervisor.start()          # 拉起 bgutil + publish-engine

@@ -12,12 +12,12 @@ port     = 8098
 dist_dir = "frontend/dist"           # in-repo 前端(改自全功能:Monitor+Accounts+Jobs)
 
 [gateway]
-enabled        = true                # 发布引擎作 publishers 远程域经 ws 接入总线
+enabled        = true                # publishers = 进程域(KIND=process),网关按需拉起子进程转发
 host           = "127.0.0.1"
 port           = 8792
 token          = ""
 ack_timeout    = 1200.0              # 发布=浏览器自动化,留余量
-remote_domains = ["publishers"]      # publishers 的异地实现 = publish-engine
+remote_domains = []                  # publishers 不再是外部远程域;进程域懒子进程由组装点自动登记
 
 [supervisor]
 
@@ -28,11 +28,7 @@ cmd  = ["node", "server/build/main.js", "--port", "{port}"]
 cwd  = "src/services/bgutil-server"
 dynamic_port = true
 
-# 发布引擎(publishers 远程域实现):python 服务,自取网关地址接入
-[[supervisor.children]]
-name = "publish-engine"
-cmd  = ["uv", "run", "python", "run.py"]
-cwd  = "src/services/publish-engine"
-env  = { BUS_GATEWAY_URL = "ws://127.0.0.1:8792", PUBLISH_ENGINE_PORT = "8802", PUBLISH_ENGINE_LOG_LEVEL = "INFO" }
+# 注:publishers 已由外部 publish-engine 边车改为**进程域**(build.py KIND=process)——
+# 懒子进程 `python -m atelier_core.boot.remote publishers src` 由组装点自动登记,config 零声明。
 
 # 注:监控源上限(5)是 daemons_settings.max_channels,由 main.py 启动时钉为 5(非本文件)。
