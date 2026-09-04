@@ -56,7 +56,8 @@ function AddSourceForm({ typeLabels, domains = [], langOptions = [], onSubmitted
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [ch, setCh] = useState({ channel_input: '', channel_name: '', auto_job: false,
-                                 poll_interval: 3600, max_duration: '', domain: '', target_lang: '' })
+                                 poll_interval: 3600, max_duration: '', domain: '', target_lang: '',
+                                 singing_detect: true, cover_generate: true })
   const [dg, setDg] = useState({ kind: 'rss', value: '', name: '' })
   const setChF = (k, v) => setCh(f => ({ ...f, [k]: v }))
   const setDgF = (k, v) => setDg(f => ({ ...f, [k]: v }))
@@ -75,9 +76,11 @@ function AddSourceForm({ typeLabels, domains = [], langOptions = [], onSubmitted
           channel_input: ch.channel_input.trim(), channel_name: ch.channel_name.trim(),
           auto_job: ch.auto_job, poll_interval: Number(ch.poll_interval) || 3600,
           max_duration: String(ch.max_duration || ''), task_type: 'video_translate',
-          domain: ch.domain.trim(), target_lang: ch.target_lang })
+          domain: ch.domain.trim(), target_lang: ch.target_lang,
+          singing_detect: ch.singing_detect, cover_generate: ch.cover_generate })
         setCh({ channel_input: '', channel_name: '', auto_job: false,
-                poll_interval: 3600, max_duration: '', domain: '', target_lang: '' })
+                poll_interval: 3600, max_duration: '', domain: '', target_lang: '',
+                singing_detect: true, cover_generate: true })
       } else {
         await hubCommand('web/monitor/digest_source_add_requested', {
           kind: dg.kind, value: dg.value.trim(), name: dg.name.trim() })
@@ -123,6 +126,16 @@ function AddSourceForm({ typeLabels, domains = [], langOptions = [], onSubmitted
             <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, cursor: 'pointer' }}>
               <input type="checkbox" checked={ch.auto_job}
                      onChange={e => setChF('auto_job', e.target.checked)} />自动建任务
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, cursor: 'pointer' }}
+                   title="自动任务:检测唱段并原声直通;关=全部当说话配音">
+              <input type="checkbox" checked={ch.singing_detect}
+                     onChange={e => setChF('singing_detect', e.target.checked)} />唱歌检测
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, cursor: 'pointer' }}
+                   title="自动任务:产出封面;关=不产封面(跳过 S11)">
+              <input type="checkbox" checked={ch.cover_generate}
+                     onChange={e => setChF('cover_generate', e.target.checked)} />封面产出
             </label>
             <select className="input" style={{ width: 108 }} value={ch.poll_interval}
                     onChange={e => setChF('poll_interval', e.target.value)}>
@@ -172,7 +185,8 @@ function ConfigModal({ source, type, accounts, domains = [], langOptions = [], b
   const [v, setV] = useState(isVideo
     ? { auto_job: !!source.auto_job, poll_interval: source.poll_interval || 3600,
         max_duration: source.max_duration_minutes ?? '', domain: source.domain || '',
-        target_lang: source.target_lang || '' }
+        target_lang: source.target_lang || '',
+        singing_detect: source.singing_detect !== 0, cover_generate: source.cover_generate !== 0 }
     : { enabled: source.data.enabled !== false, name: source.data.name || '',
         poll_interval: source.data.poll_interval || 3600 })
   // sel = [{connection_id, visibility, declaration}];每条边一份发布设置(同账号跨频道可各异)
@@ -192,7 +206,8 @@ function ConfigModal({ source, type, accounts, domains = [], langOptions = [], b
           channel_id: source.channel_id,
           values: { auto_job: v.auto_job, poll_interval: Number(v.poll_interval),
                     max_duration_minutes: v.max_duration === '' ? 'all' : Number(v.max_duration),
-                    domain: v.domain.trim(), target_lang: v.target_lang } })
+                    domain: v.domain.trim(), target_lang: v.target_lang,
+                    singing_detect: v.singing_detect, cover_generate: v.cover_generate } })
         await hubCommand('web/channel/targets_edit_requested', {
           channel_id: source.channel_id, targets: sel })
       } else {
@@ -221,6 +236,18 @@ function ConfigModal({ source, type, accounts, domains = [], langOptions = [], b
                      onChange={e => setF('auto_job', e.target.checked)} />
               自动建任务(发现新视频即建翻译任务)
             </label>
+            <div style={{ display: 'flex', gap: 16, marginBottom: 12, flexWrap: 'wrap' }}>
+              <label style={{ fontSize: 13, display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer' }}
+                     title="自动任务:检测唱段并原声直通;关=全部当说话配音">
+                <input type="checkbox" checked={v.singing_detect}
+                       onChange={e => setF('singing_detect', e.target.checked)} />唱歌检测
+              </label>
+              <label style={{ fontSize: 13, display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer' }}
+                     title="自动任务:产出封面;关=不产封面(跳过 S11)">
+                <input type="checkbox" checked={v.cover_generate}
+                       onChange={e => setF('cover_generate', e.target.checked)} />封面产出
+              </label>
+            </div>
             <div style={{ display: 'flex', gap: 12, marginBottom: 14, flexWrap: 'wrap' }}>
               <div style={{ flex: '1 1 160px' }}>
                 {fieldLabel('轮询间隔')}
