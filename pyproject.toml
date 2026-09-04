@@ -81,6 +81,13 @@ dependencies = [
     "clearvoice",
     "yt-dlp-ejs>=0.8.0",
     "openai>=3.0.0",
+    # ── publishers 域(进程域)运行时:浏览器自动化 + OCR 定位栈 ────────────────
+    #    清单归域(src/publishers/requirements.txt);本变体仍用静态聚合,故在此并入
+    #    (numpy/httpx 已在上方;rapidocr 带 onnxruntime-CPU+opencv,与 paddle 栈不冲突)。
+    #    TODO 后续可收敛到 studio 的动态聚合(hatch-requirements-txt)以消除双维护。
+    "patchright>=1.45",
+    "rapidocr-onnxruntime>=1.3",
+    "pillow>=10",
 ]
 
 [tool.uv]
