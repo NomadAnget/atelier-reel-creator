@@ -1,11 +1,11 @@
-// 发布账号(新系统):发布引擎账号管理——纯总线形态,零引擎直连。
-//   状态面:connections 台账(/api/store,引擎快照经 platform_adapters 落库),
-//           登录态徽章来自 meta(引擎持久化缓存,不开浏览器);
-//   控制面:web/engine/* 命令(登录/删除/重报)经网关投递引擎执行,
-//           快照回流 → 台账更新 → SSE 驱动本页自动刷新;
-//   活性:publishers 心跳(总线 recent 里 30s 内有心跳=引擎在线)。
+// 发布账号(新系统):发布账号管理——纯总线形态,零引擎直连。
+//   状态面:connections 台账(/api/store,publishers_accounts 经 platform_adapters 落库),
+//           登录态徽章来自 meta(account_status 缓存,不开浏览器);
+//   控制面:web/publishers/* 命令(登录/删除/重检)经网关投递 publishers 进程域执行,
+//           account/changed 回流 → 台账更新 → SSE 驱动本页自动刷新;
+//   发布域 = 按需进程域(发命令即由网关拉起子进程,无常驻引擎/心跳灯)。
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { hubCommand, hubSnapshot, hubStore } from '../api/hub'
+import { hubCommand, hubStore } from '../api/hub'
 import { useHubEvent } from '../hooks/HubStream'
 import { confirm } from '../components/confirm'
 import Icon from '../components/Icon'
@@ -14,7 +14,6 @@ const PLATFORMS = ['douyin', 'kuaishou', 'xiaohongshu', 'shipinhao', 'bilibili']
 const PLAT_COLOR = { douyin: '#26c6da', kuaishou: '#ff5000', xiaohongshu: '#ff2442', shipinhao: '#fa9d3b', bilibili: '#fb7299' }
 export const P_LABEL = { douyin: '抖音', kuaishou: '快手', xiaohongshu: '小红书',
                   shipinhao: '视频号', bilibili: 'B站' }
-const HEARTBEAT_FRESH_SEC = 30
 
 const fmtAge = (ts) => {
   if (!ts) return '未检查'
@@ -23,8 +22,8 @@ const fmtAge = (ts) => {
 }
 
 export default function PublishAccounts() {
-  const [accounts, setAccounts] = useState([])     // connections engine_* 行
-  const [engineUp, setEngineUp] = useState(null)
+  const [accounts, setAccounts] = useState([])     // 合并:publishers_accounts(身份)+ publishers_account_status(登录态)
+  const [engineUp, setEngineUp] = useState(null)   // 就绪(系统可达)——publishers 是按需进程域,无常驻心跳
   const [adding, setAdding] = useState(false)
   const [busy, setBusy] = useState('')             // 正在执行的命令提示
   const [error, setError] = useState('')
@@ -32,33 +31,42 @@ export default function PublishAccounts() {
 
   const load = useCallback(async () => {
     try {
-      const [{ data: conns }, { data: snap }] = await Promise.all([
-        hubStore('platform_adapters_connections', { kind: 'connection', limit: 100 }),
-        hubSnapshot(),
+      // **单一真源**:直读 publishers 进程域直写的两张表(身份 + 登录态),按 key 合并——
+      // 已去掉旧 platform_adapters engine_ 镜像(双存+滞后是先前 checked_at 陈旧的根因)。
+      const [{ data: accs }, { data: sts }] = await Promise.all([
+        hubStore('publishers_accounts', { kind: 'account', limit: 100 }),
+        hubStore('publishers_account_status', { kind: 'status', limit: 100 }),
       ])
-      setAccounts(conns.rows.map(r => r.data)
-        .filter(d => (d?.provider || '').startsWith('engine_')))
-      const hb = (snap.recent || []).filter(m => m.topic === 'publishers/health/heartbeat')
-        .map(m => m.ts).sort((a, b) => b - a)[0]
-      setEngineUp(!!hb && Date.now() / 1000 - hb < HEARTBEAT_FRESH_SEC)
+      const status = Object.fromEntries((sts.rows || []).map(r => [r.data.account_key, r.data]))
+      setAccounts((accs.rows || []).map(r => {
+        const d = r.data, st = status[d.key] || {}
+        return { key: d.key, platform: d.platform, account_id: d.account_id,
+                 name: d.name || d.account_id, avatar: d.avatar,
+                 logged_in: st.logged_in, checked_at: st.checked_at }
+      }))
+      setEngineUp(true)
       setError('')
     } catch (e) {
+      setEngineUp(false)
       setError(e?.response?.data?.error || e.message)
     }
   }, [])
   useEffect(() => { load() }, [load])
   useEffect(() => {
-    const t = setInterval(load, 15000)            // 心跳新鲜度兜底刷新
+    const t = setInterval(load, 15000)            // 兜底刷新(SSE 之外的定时回读)
     return () => clearInterval(t)
   }, [load])
 
-  // 台账写事件/快照消息 → 去抖回读
+  // 表写事件 / account/changed 事件 → 去抖回读
   const trigger = () => {
     if (timerRef.current) return
     timerRef.current = setTimeout(() => { timerRef.current = null; load() }, 400)
   }
-  useHubEvent('store', (m) => { if (String(m.table || '') === 'platform_adapters_connections') trigger() })
-  useHubEvent('msg', (m) => { if (m.topic === 'publishers/accounts/snapshot') trigger() })
+  useHubEvent('store', (m) => {
+    const t = String(m.table || '')
+    if (t === 'publishers_accounts' || t === 'publishers_account_status') trigger()
+  })
+  useHubEvent('msg', (m) => { if (m.topic === 'publishers/account/changed') trigger() })
 
   const cmd = async (topic, payload, note) => {
     setBusy(note)
@@ -74,19 +82,19 @@ export default function PublishAccounts() {
 
   const addAccount = (platform) => {
     setAdding(false)
-    cmd('web/engine/login_requested', { platform },
-        `已请求登录 ${P_LABEL[platform]}:引擎宿主机将弹出浏览器,请扫码;登录完成后账号自动出现`)
+    cmd('web/publishers/login_requested', { platform },
+        `已请求登录 ${P_LABEL[platform]}:宿主机将弹出浏览器,请扫码;登录完成后账号自动出现`)
   }
-  const relogin = (a) => cmd('web/engine/login_requested',
-    { platform: a.provider.replace('engine_', ''), account_key: a.access_token },
-    `重登 ${a.nickname}:复用原 profile,宿主机浏览器等扫码`)
+  const relogin = (a) => cmd('web/publishers/login_requested',
+    { platform: a.platform, account_key: a.key },
+    `重登 ${a.name}:复用原 profile,宿主机浏览器等扫码`)
   const remove = async (a) => {
-    if (!(await confirm(`删除账号「${a.nickname}」?将移除引擎登录态(profile 数据),台账自动剪枝。`))) return
-    cmd('web/engine/account_delete_requested', { key: a.access_token },
-        `已请求删除 ${a.nickname}`)
+    if (!(await confirm(`删除账号「${a.name}」?将移除登录态与 profile 数据。`))) return
+    cmd('web/publishers/account_delete_requested', { account_key: a.key },
+        `已请求删除 ${a.name}`)
   }
 
-  const online = accounts.filter(a => a.meta?.logged_in).length
+  const online = accounts.filter(a => a.logged_in).length
 
   return (
     <div>
@@ -100,20 +108,20 @@ export default function PublishAccounts() {
       {error && <div className="alert alert-error mb-24"><Icon name="alert" size={14} /> {error}</div>}
       {busy && <div className="alert mb-24" style={{ fontSize: 12 }}><Icon name="hourglass" size={13} /> {busy}</div>}
 
-      {/* 引擎总状态(活性=心跳公约,总线上直接可见) */}
+      {/* 发布域状态:按需进程域——发命令即由网关拉起子进程执行,无常驻引擎/心跳 */}
       <div className="panel mb-24">
         <div className="panel-head">
           <span className={`status-dot${engineUp ? ' pulse' : ''}`}
                 style={{ color: engineUp ? 'var(--success)' : engineUp === null ? 'var(--gray-400)' : 'var(--danger)' }} />
           <span className="panel-title">
-            发布引擎 {engineUp ? '在线' : engineUp === null ? '检测中…' : '离线'}
+            发布域 {engineUp ? '就绪' : engineUp === null ? '检测中…' : '不可达'}
           </span>
         </div>
         <div className="panel-body">
           <div className="text-muted" style={{ fontSize: 11 }}>
             {engineUp
-              ? 'publishers 远程域 · 心跳正常 · 浏览器自动化多平台直发'
-              : '总线上 30s 内无引擎心跳——检查监督器日志(系统日志页 SUBPROC)'}
+              ? 'publishers 进程域 · 按需拉起子进程(浏览器自动化多平台直发)· 闲时自动回收'
+              : '系统不可达——检查后端是否运行(系统日志页)'}
           </div>
         </div>
       </div>
@@ -124,34 +132,34 @@ export default function PublishAccounts() {
           <Icon name="send" size={15} />
           <span className="panel-title">已连接账号</span>
           <span className="text-muted" style={{ fontSize: 11 }}>
-            {online}/{accounts.length} 在线(登录态为引擎缓存,非实时)
+            {online}/{accounts.length} 在线(登录态=account_status 缓存;点重新检查现场刷新)
           </span>
           <button className="btn btn-outline btn-sm" style={{ marginLeft: 'auto' }}
                   disabled={!engineUp}
-                  onClick={() => cmd('web/engine/check_requested', {}, '已请求重报账号快照')}>
-            <Icon name="refresh" size={13} /> 重报快照
+                  onClick={() => cmd('web/publishers/check_requested', {}, '已请求重新检查登录态')}>
+            <Icon name="refresh" size={13} /> 重新检查
           </button>
         </div>
         <div className="panel-body" style={{ display: 'grid', gap: 10,
                       gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))' }}>
           {accounts.map(a => {
-            const p = a.provider.replace('engine_', '')
-            const li = a.meta?.logged_in
+            const p = a.platform
+            const li = a.logged_in
             return (
-              <div key={a.access_token} className="card"
+              <div key={a.key} className="card"
                    style={{ padding: '10px 12px', display: 'flex',
                             alignItems: 'center', gap: 10, minHeight: 74 }}>
-                {a.meta?.avatar
-                  ? <img src={a.meta.avatar} alt="" style={{ width: 28, height: 28,
+                {a.avatar
+                  ? <img src={a.avatar} alt="" style={{ width: 28, height: 28,
                          borderRadius: '50%', objectFit: 'cover' }} />
                   : <span style={{ fontSize: 20, color: PLAT_COLOR[p] || 'var(--gray-400)' }}>●</span>}
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden',
                                 textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {a.nickname || a.display_name}
+                    {a.name}
                   </div>
                   <div className="text-muted" style={{ fontSize: 10 }}>
-                    {P_LABEL[p] || p} · 检查于 {fmtAge(a.meta?.checked_at)}
+                    {P_LABEL[p] || p} · 检查于 {fmtAge(a.checked_at)}
                   </div>
                 </div>
                 <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10,

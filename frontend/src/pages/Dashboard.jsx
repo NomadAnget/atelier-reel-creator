@@ -18,8 +18,8 @@ function BindingMatrix({ channels, accounts, bindings }) {
       return [b.data?.channel_id, new Set(edges.map(t => String(t.connection_id)))]
     }))
   const acctLabel = (a) => {
-    const plat = (a.provider || '').replace('engine_', '')
-    return `${P_LABEL[plat] || plat}·${a.nickname || a.display_name || a.id}`
+    const plat = a.platform || ''
+    return `${P_LABEL[plat] || plat}·${a.name || a.account_id || a.id}`
   }
   const platColor = { douyin: '#26c6da', kuaishou: '#ff5000', bilibili: '#fb7299',
                       xiaohongshu: '#ff2442', shipinhao: '#fa9d3b' }
@@ -46,7 +46,7 @@ function BindingMatrix({ channels, accounts, bindings }) {
                 <th key={a.id} title={acctLabel(a)}
                     style={{ padding: '6px 8px', fontSize: 11, textAlign: 'left', borderLeft: '1px solid var(--border)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
-                    <span style={{ color: platColor[(a.provider || '').replace('engine_', '')], flexShrink: 0 }}>●</span>
+                    <span style={{ color: platColor[a.platform], flexShrink: 0 }}>●</span>
                     <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{acctLabel(a)}</span>
                   </div>
                 </th>
@@ -119,17 +119,18 @@ export default function Dashboard() {
         ])
       setJobs(j.rows); setChannels(ch.rows); setVideosToday(vd.count)
       setSnap(sn); setIncidents(inc.rows); setError('')
-      const [{ data: conns }, { data: bnd }] = await Promise.all([
-        hubStore('platform_adapters_connections', { kind: 'connection', limit: 100 })
+      const [{ data: accs }, { data: conns }, { data: bnd }] = await Promise.all([
+        hubStore('publishers_accounts', { kind: 'account', limit: 100 })   // 发布账号真源(去镜像后直读)
+          .catch(() => ({ data: { rows: [] } })),
+        hubStore('platform_adapters_connections', { kind: 'connection', limit: 100 })  // 仅取 YouTube 数据源行
           .catch(() => ({ data: { rows: [] } })),
         hubStore('scheduler_channel_targets', { kind: 'targets', limit: 200 })
           .catch(() => ({ data: { rows: [] } })),
       ])
-      const rows = conns?.rows || []
-      setPubAccounts(rows.filter(r => (r.data?.provider || '').startsWith('engine_'))
-        .map(r => ({ id: r.id, ...r.data })))
+      // 身份 id = account_key(与绑定/目标解析同键);平台/名直取真源
+      setPubAccounts((accs?.rows || []).map(r => ({ id: String(r.data.key), ...r.data })))
       setBindings(bnd?.rows || [])
-      const ytRow = (rows.find(r => r.data?.provider === 'youtube') || {}).data
+      const ytRow = ((conns?.rows || []).find(r => r.data?.provider === 'youtube') || {}).data
       setYtAuth(ytRow ? {
         connected: !!ytRow.meta?.connected, expired: !!ytRow.meta?.expired,
         has_refresh: !!ytRow.meta?.has_refresh, updated_at: ytRow.meta?.updated_at,
@@ -317,9 +318,9 @@ export default function Dashboard() {
                   引擎未上报账号(上线即广播,每 30 分钟对账)
                 </div>
               ) : pubAccounts.map(a => (
-                <div className="list-row" key={a.access_token}>
-                  <span className="text-muted" style={{ fontSize: 11 }}>{(a.provider || '').replace('engine_', '')}</span>
-                  <span style={{ fontWeight: 600 }}>{a.nickname || a.display_name}</span>
+                <div className="list-row" key={a.id}>
+                  <span className="text-muted" style={{ fontSize: 11 }}>{a.platform}</span>
+                  <span style={{ fontWeight: 600 }}>{a.name || a.account_id}</span>
                 </div>
               ))}
             </div>

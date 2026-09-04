@@ -7,7 +7,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { hubStore } from '../api/hub'
 import { useHubEvent } from '../hooks/HubStream'
-import { connectionsToTargets, PLATFORM_LABEL } from './CreateJobModal'
+import { accountsToTargets, PLATFORM_LABEL } from './CreateJobModal'
 
 const DAYS = 30
 const DAY_MS = 86400000
@@ -23,11 +23,11 @@ export default function PublishActivity({ selectedChannel = '' }) {
   const load = useCallback(async () => {
     try {
       const [{ data: cn }, { data: bt }, { data: vd }] = await Promise.all([
-        hubStore('platform_adapters_connections', { limit: 200 }),
+        hubStore('publishers_accounts', { kind: 'account', limit: 200 }),
         hubStore('scheduler_channel_targets', { limit: 500 }),
         hubStore('daemons_videos', { order: 'discovered_at:desc', limit: 2000 }),
       ])
-      const accounts = connectionsToTargets(cn.rows)
+      const accounts = accountsToTargets(cn.rows)
 
       // 账号 id → 绑定的 channel_id 列表(channel_targets 是信封表,字段在 .data)。
       // targets 为边对象数组 [{connection_id,...}];兼容旧 connection_ids 裸 id 行。
@@ -76,7 +76,7 @@ export default function PublishActivity({ selectedChannel = '' }) {
   useHubEvent('store', (m) => {
     const t = String(m.table || '')
     if (t !== 'daemons_videos' && t !== 'scheduler_channel_targets'
-        && t !== 'platform_adapters_connections') return
+        && t !== 'publishers_accounts') return
     if (timer.current) return
     timer.current = setTimeout(() => { timer.current = null; load() }, 600)
   })

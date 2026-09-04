@@ -13,16 +13,16 @@ const TOP_LEVEL = new Set(['video_url', 'target_lang'])   // JobRequested 顶层
 export const PLATFORM_LABEL = { bilibili: '哔哩哔哩', kuaishou: '快手', douyin: '抖音',
   xiaohongshu: '小红书', shipinhao: '视频号' }
 
-/** 发布账号候选(连接表 → 多选项):排除数据源(meta.datasource),只留引擎账号;
- *  label = 昵称 · 平台中文。CreateJobModal 与频道绑定共用同一逻辑。 */
-export const connectionsToTargets = (rows) =>
+/** 发布账号候选(publishers_accounts 真源 → 多选项):**身份 id = account_key**("平台:uid",
+ *  scheduler 目标解析据此直读真源;已去 engine_ connections 镜像/行 id)。label = 名 · 平台中文。
+ *  CreateJobModal 与频道绑定共用同一逻辑。 */
+export const accountsToTargets = (rows) =>
   (rows || [])
-    .filter(r => !r.data?.meta?.datasource
-              && String(r.data?.provider || '').startsWith('engine_'))
+    .filter(r => r.data?.key && r.data?.platform)
     .map(r => {
-      const platform = String(r.data.provider || '').replace(/^engine_/, '')
-      const name = r.data.nickname || r.data.display_name || platform
-      return { id: r.id, name, platform, label: `${name} · ${PLATFORM_LABEL[platform] || platform}` }
+      const platform = String(r.data.platform)
+      const name = r.data.name || r.data.account_id || platform
+      return { id: String(r.data.key), name, platform, label: `${name} · ${PLATFORM_LABEL[platform] || platform}` }
     })
 
 function Field({ f, value, onChange, targets }) {
@@ -81,13 +81,11 @@ export default function CreateJobModal({ taskTypes, onClose, onCreated }) {
 
   useEffect(() => { setValues({}); setError('') }, [taskType])   // 切类型清表单
 
-  // publish_targets 字段存在时,查已连接的**发布账号**做候选:
-  //   · 排除数据源(meta.datasource,如 YouTube 采集 OAuth,非发布目标);
-  //   · 账户名=nickname,平台=provider 去 engine_ 前缀(display_name 是平台数字 UID,不展示)。
+  // publish_targets 字段存在时,查已登录**发布账号**(publishers_accounts 真源)做候选。
   useEffect(() => {
     if (!needsTargets) return
-    hubStore('platform_adapters_connections', { limit: 200 })
-      .then(({ data }) => setTargets(connectionsToTargets(data.rows)))
+    hubStore('publishers_accounts', { kind: 'account', limit: 200 })
+      .then(({ data }) => setTargets(accountsToTargets(data.rows)))
       .catch(() => setTargets([]))
   }, [needsTargets, taskType])
 

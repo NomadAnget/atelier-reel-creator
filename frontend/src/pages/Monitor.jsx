@@ -7,7 +7,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { hubStore, hubCommand, hubSnapshot } from '../api/hub'
 import { useHubEvent } from '../hooks/HubStream'
-import { connectionsToTargets, PLATFORM_LABEL } from '../components/CreateJobModal'
+import { accountsToTargets, PLATFORM_LABEL } from '../components/CreateJobModal'
 import { confirm } from '../components/confirm'
 import DomainCombo from '../components/DomainCombo'
 import useDomains from '../hooks/useDomains'
@@ -328,7 +328,7 @@ export default function Monitor() {
           ...(filterChannel ? { channel_id: filterChannel } : {}),
         }),
         hubStore('scheduler_channel_targets', { limit: 200 }),
-        hubStore('platform_adapters_connections', { limit: 200 }),
+        hubStore('publishers_accounts', { kind: 'account', limit: 200 }),
         hubStore('daemons_news_items', { order: 'collected_at:desc', limit: 500 }),
       ])
       setChannels(ch.rows); setDigestSources(ds.rows); setVideos(vd.rows); setError('')
@@ -337,7 +337,7 @@ export default function Monitor() {
       setBindings(Object.fromEntries((bt.rows || []).map(r => [
         r.data?.channel_id,
         r.data?.targets || (r.data?.connection_ids || []).map(id => ({ connection_id: String(id) }))])))
-      setAccounts(connectionsToTargets(cn.rows))
+      setAccounts(accountsToTargets(cn.rows))
       const preview = {}
       for (const it of (ni.rows || [])) {
         const k = newsKeyOfItem(it)
