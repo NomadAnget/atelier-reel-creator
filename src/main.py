@@ -114,10 +114,6 @@ async def serve(config_path: str | None = None) -> None:
     svc["engines_settings_edit"] = edit_handler(engines_settings, "engines")
     await engines_settings.get()
 
-    # 监控源上限钉为 5(个人版):写 daemons_settings.max_channels
-    from .daemons.impl.service import update_daemon_settings
-    await update_daemon_settings(store, store_windows["daemons"], {"max_channels": _MAX_CHANNELS})
-
     # task 域:build 聚合(基础 + pipeline-video)
     from .task import build as task_build
     ctx = BuildContext(hub=store, stores=store_windows, publish=windows["task"],
@@ -141,7 +137,9 @@ async def serve(config_path: str | None = None) -> None:
 
     # daemons:频道监控(auto-job 即建即跑;无日报排产/采集)
     from .daemons.impl.monitor import MonitorService
-    svc["monitor"] = MonitorService(windows["daemons"], store, store_windows["daemons"])
+    # 监控源上限=变体绑定常量(个人版限 5),注入 MonitorService(非运行时可改设置)。
+    svc["monitor"] = MonitorService(windows["daemons"], store, store_windows["daemons"],
+                                    max_channels=_MAX_CHANNELS)
     # 发布账号保活/查态调度(执行侧在 publishers 进程域;到点发 daemons/publishers/* 唤醒)
     from .daemons.impl.publishers_keepalive import PublishersKeepalive
     svc["pub_keepalive"] = PublishersKeepalive(windows["daemons"], store)
