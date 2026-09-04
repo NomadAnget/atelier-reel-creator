@@ -28,3 +28,6 @@
 [submodule "src/services/bgutil-server"]
 	path = src/services/bgutil-server
 	url = https://github.com/Brainicism/bgutil-ytdlp-pot-provider
+[submodule "frontend"]
+	path = frontend
+	url = https://forgejo.hurcaguari.top/Carnation/atelier-frontend.git

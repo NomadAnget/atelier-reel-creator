@@ -6,10 +6,13 @@ store_db   = "data/hub/store.db"
 models_dir = "/home/Architecture/checkpoints"   # 复用现有权重(绝对路径)
 
 [web]
-enabled  = true
-host     = "0.0.0.0"
-port     = 8098
-dist_dir = "frontend/dist"           # in-repo 前端(改自全功能:Monitor+Accounts+Jobs)
+enabled    = true
+host       = "0.0.0.0"
+port       = 8098
+dist_dir   = "frontend/dist"           # 共享前端子模块(atelier-frontend);单一构建,页面按后端能力动态显隐
+# 排除页(域挂着但本变体不显):个人版无闲时排产(有 daemons 但不跑 SchedulerService)。
+# 新闻日报/总线观测无需列——无 news_digest 管线/无 sentinel 域,前端自动隐藏。
+hide_pages = ["scheduler"]
 
 [gateway]
 enabled        = true                # publishers = 进程域(KIND=process),网关按需拉起子进程转发
