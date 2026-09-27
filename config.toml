@@ -16,11 +16,9 @@ hide_pages = ["scheduler"]
 
 [gateway]
 enabled        = true                # publishers = 进程域(KIND=process),网关按需拉起子进程转发
-host           = "127.0.0.1"
-port           = 8792
-token          = ""
-ack_timeout    = 1200.0              # 发布=浏览器自动化,留余量
-remote_domains = []                  # publishers 不再是外部远程域;进程域懒子进程由组装点自动登记
+ack_timeout    = 1200.0              # 发布=浏览器自动化(过风控可达十几分钟),内核默认 600 不够
+# host/port/token/remote_domains 走内核默认:只绑本机、端口动态分配(≥0.2.5,经命令行交给子进程)、
+# 无 token、无跨机远程域(publishers 是本机进程域,由组装点自动登记)。
 
 [supervisor]
 
