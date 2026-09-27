@@ -1,4 +1,4 @@
-# atelier-reel-creator 基建配置(重启级)。域根=src;含监控 + 自动发布(网关 + 发布引擎)。
+# atelier-reel-creator 基建配置(重启级)。域根=src;含监控 + 自动发布(网关 + publishers 进程域懒子进程)。
 
 [paths]
 journal_db = "data/hub/journal.db"

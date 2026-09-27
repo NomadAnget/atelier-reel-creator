@@ -1,7 +1,7 @@
 """atelier-reel-creator 组装入口(产品接线)—— 个人 up 主:频道监控(限5源)+视频翻译+自动发布。
 
 域集 = reel 基座(web/scheduler/task/engines/platform_adapters)+ daemons(监控)+ publishers
-(发布,远程域,经网关由 publish-engine 实现)。gateway 开;supervisor 起 bgutil + publish-engine 边车。
+(发布,进程域·懒子进程)。gateway 开(进程域懒子进程);supervisor 起 bgutil 边车。
 不含 media / pipeline-digest / sentinel;不跑日报排产/采集(监控 auto-job 即建即跑)。
 """
 
@@ -153,7 +153,7 @@ async def serve(config_path: str | None = None) -> None:
         asyncio.create_task(svc["pub_keepalive"].run(), name="pub_keepalive"),
         asyncio.create_task(_housekeeping_loop(bus, store, cfg.retention), name="housekeeping"),
     ]
-    await supervisor.start()          # 拉起 bgutil + publish-engine
+    await supervisor.start()          # 拉起 bgutil
 
     # web(单端口 + in-repo 前端:Monitor+Accounts+Jobs)
     web_server = web_task = None
