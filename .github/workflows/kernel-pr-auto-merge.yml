@@ -124,7 +124,7 @@ jobs:
 
           matches = []
           for candidate in candidates:
-              match = re.fullmatch(re.escape(prefix) + r"(v[0-9]+\\.[0-9]+\\.[0-9]+)", candidate)
+              match = re.fullmatch(re.escape(prefix) + r"(v[0-9]+[.][0-9]+[.][0-9]+)", candidate)
               if not match:
                   raise SystemExit("Atelier CI requires atelier-core pinned to a GitHub version tag")
               matches.append(prefix + match.group(1))
